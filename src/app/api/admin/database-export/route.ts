@@ -1,7 +1,7 @@
 import { EJSON } from "bson";
 import { MongoClient } from "mongodb";
 import { NextResponse } from "next/server";
-import { ActivityAction } from "@prisma/client";
+import { ActivityAction } from "@/lib/enums";
 import { readSessionUser } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { isSuperAdmin } from "@/lib/rbac";

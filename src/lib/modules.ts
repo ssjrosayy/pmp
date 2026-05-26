@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { RoleName } from "@prisma/client";
+import { RoleName } from "@/lib/enums";
 import type { ModuleKey } from "@/lib/rbac";
 
 export type FieldType =

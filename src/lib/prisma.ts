@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
-import type { PrismaClient } from "@prisma/client";
 import { MongoClient, type Db, type Document, type Filter } from "mongodb";
 
 type Row = Record<string, unknown>;
+// The adapter exposes dynamic module records matching the generic admin table configuration.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ResultRow = Record<string, any> & { id: string };
 type StoredDocument = Document & { _id: string };
 type QueryArgs = {
   where?: Row;
@@ -157,7 +159,6 @@ if (!connectionString?.startsWith("mongodb")) {
 const globalForCosmos = globalThis as unknown as {
   cosmosClient?: MongoClient;
   cosmosDb?: Promise<Db>;
-  prisma?: PrismaClient;
 };
 
 const mongoClient = globalForCosmos.cosmosClient ?? new MongoClient(connectionString);
@@ -396,7 +397,7 @@ async function createRow(collection: CollectionName, input: Row, include?: Row) 
 
 function delegate(collection: CollectionName) {
   return {
-    async findMany(args: QueryArgs = {}) {
+    async findMany(args: QueryArgs = {}): Promise<ResultRow[]> {
       const filter = toMongoFilter(args.where, collection);
       let rows: Row[];
       if (filter) {
@@ -408,7 +409,7 @@ function delegate(collection: CollectionName) {
       rows.sort(compareRows(args.orderBy));
       rows = rows.slice(args.skip ?? 0, args.take === undefined ? undefined : (args.skip ?? 0) + args.take);
       const snapshot = await includeSnapshot(collection, rows, args.include);
-      return rows.map((row) => selected(enrich(collection, row, args.include, snapshot), args.select));
+      return rows.map((row) => selected(enrich(collection, row, args.include, snapshot), args.select) as ResultRow);
     },
     async findFirst(args: QueryArgs = {}) {
       return (await this.findMany({ ...args, take: 1 }))[0] ?? null;
@@ -421,24 +422,24 @@ function delegate(collection: CollectionName) {
       if (filter) return (await database).collection(collection).countDocuments(filter);
       return (await this.findMany({ where: args.where })).length;
     },
-    async create(args: QueryArgs) {
-      return createRow(collection, args.data as Row, args.include);
+    async create(args: QueryArgs): Promise<ResultRow> {
+      return createRow(collection, args.data as Row, args.include) as Promise<ResultRow>;
     },
     async createMany(args: QueryArgs) {
       const data = Array.isArray(args.data) ? args.data : [];
       for (const row of data) await createRow(collection, row);
       return { count: data.length };
     },
-    async update(args: QueryArgs) {
+    async update(args: QueryArgs): Promise<ResultRow> {
       const existing = await this.findUnique({ where: args.where });
       if (!existing) throw new Error(`${collection} not found.`);
       const data = { ...(args.data as Row), updatedAt: new Date() };
       await (await database).collection<StoredDocument>(collection).updateOne({ _id: String(existing.id) }, { $set: data });
       const row = { ...existing, ...data };
       const snapshot = await includeSnapshot(collection, [row], args.include);
-      return enrich(collection, row, args.include, snapshot);
+      return enrich(collection, row, args.include, snapshot) as ResultRow;
     },
-    async delete(args: QueryArgs) {
+    async delete(args: QueryArgs): Promise<ResultRow> {
       const existing = await this.findUnique({ where: args.where });
       if (!existing) throw new Error(`${collection} not found.`);
       await (await database).collection<StoredDocument>(collection).deleteOne({ _id: String(existing.id) });
@@ -505,8 +506,4 @@ const cosmosClient = {
   },
 };
 
-export const prisma = (globalForCosmos.prisma ?? cosmosClient) as unknown as PrismaClient;
-
-if (process.env.NODE_ENV !== "production") {
-  globalForCosmos.prisma = prisma;
-}
+export const prisma = cosmosClient;

@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ActivityAction, UserStatus } from "@prisma/client";
+import { ActivityAction, UserStatus } from "@/lib/enums";
 import { prisma } from "@/lib/prisma";
 import { setSessionCookie } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";

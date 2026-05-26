@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ActivityAction } from "@prisma/client";
+import { ActivityAction } from "@/lib/enums";
 import { prisma } from "@/lib/prisma";
 import { writeAudit } from "@/lib/audit";
 

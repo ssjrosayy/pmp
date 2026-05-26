@@ -8,14 +8,11 @@
     "start": "next start",
     "start:azure": "node scripts/start-azure.mjs",
     "lint": "eslint",
-    "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push",
-    "prisma:studio": "prisma studio",
-    "db:setup": "prisma db push && npm run db:seed",
+    "db:indexes": "tsx scripts/setup-cosmos-indexes.ts",
+    "db:setup": "npm run db:indexes && npm run db:seed",
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.0",
     "bcryptjs": "^3.0.3",
     "bson": "^7.2.0",
     "clsx": "^2.1.1",
@@ -25,7 +22,6 @@
     "lucide-react": "^1.16.0",
     "mongodb": "^7.2.0",
     "next": "16.2.6",
-    "prisma": "^6.19.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "zod": "^4.4.3"

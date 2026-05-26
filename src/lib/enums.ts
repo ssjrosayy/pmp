@@ -1,0 +1,151 @@
+export const RoleName = {
+  SUPER_ADMIN: "SUPER_ADMIN",
+  ADMIN: "ADMIN",
+  DEPARTMENT_HEAD: "DEPARTMENT_HEAD",
+  PROJECT_MANAGER: "PROJECT_MANAGER",
+  EMPLOYEE: "EMPLOYEE",
+  INTERN: "INTERN",
+  CLIENT_GUEST: "CLIENT_GUEST",
+} as const;
+export type RoleName = (typeof RoleName)[keyof typeof RoleName];
+
+export const PermissionAction = {
+  CREATE: "CREATE",
+  READ: "READ",
+  UPDATE: "UPDATE",
+  DELETE: "DELETE",
+  APPROVE: "APPROVE",
+  SHARE: "SHARE",
+  EXPORT: "EXPORT",
+} as const;
+
+export const UserStatus = {
+  ACTIVE: "ACTIVE",
+  INACTIVE: "INACTIVE",
+  INVITED: "INVITED",
+} as const;
+
+export const ProjectType = {
+  INTERNAL_PRODUCT: "INTERNAL_PRODUCT",
+  CLIENT_PROJECT: "CLIENT_PROJECT",
+  R_AND_D: "R_AND_D",
+  OFFICE_ADMIN: "OFFICE_ADMIN",
+  SALES: "SALES",
+  HR: "HR",
+  FINANCE: "FINANCE",
+} as const;
+
+export const ProjectStatus = {
+  PLANNING: "PLANNING",
+  ACTIVE: "ACTIVE",
+  BLOCKED: "BLOCKED",
+  REVIEW: "REVIEW",
+  COMPLETED: "COMPLETED",
+  PAUSED: "PAUSED",
+} as const;
+
+export const Priority = {
+  LOW: "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH: "HIGH",
+  CRITICAL: "CRITICAL",
+} as const;
+
+export const TaskStatus = {
+  BACKLOG: "BACKLOG",
+  TO_DO: "TO_DO",
+  IN_PROGRESS: "IN_PROGRESS",
+  WAITING: "WAITING",
+  REVIEW: "REVIEW",
+  DONE: "DONE",
+  CANCELLED: "CANCELLED",
+} as const;
+
+export const DocumentCategory = {
+  CONTRACTS: "CONTRACTS",
+  OFFER_LETTERS: "OFFER_LETTERS",
+  INVESTOR_AGREEMENTS: "INVESTOR_AGREEMENTS",
+  NDAS: "NDAS",
+  JDS: "JDS",
+  COMPANY_POLICIES: "COMPANY_POLICIES",
+  TECHNICAL_DOCS: "TECHNICAL_DOCS",
+  CLIENT_PROPOSALS: "CLIENT_PROPOSALS",
+  MEETING_NOTES: "MEETING_NOTES",
+} as const;
+
+export const ApprovalStatus = {
+  DRAFT: "DRAFT",
+  UNDER_REVIEW: "UNDER_REVIEW",
+  APPROVED: "APPROVED",
+  SIGNED: "SIGNED",
+  ARCHIVED: "ARCHIVED",
+} as const;
+
+export const EmployeeStatus = {
+  CANDIDATE: "CANDIDATE",
+  OFFERED: "OFFERED",
+  ACTIVE: "ACTIVE",
+  PROBATION: "PROBATION",
+  CONTRACTOR: "CONTRACTOR",
+  INTERN: "INTERN",
+  TERMINATED: "TERMINATED",
+  RESIGNED: "RESIGNED",
+} as const;
+
+export const CandidateStage = {
+  APPLIED: "APPLIED",
+  SHORTLISTED: "SHORTLISTED",
+  INTERVIEW_SCHEDULED: "INTERVIEW_SCHEDULED",
+  INTERVIEWED: "INTERVIEWED",
+  SELECTED: "SELECTED",
+  OFFER_SENT: "OFFER_SENT",
+  HIRED: "HIRED",
+  REJECTED: "REJECTED",
+} as const;
+
+export const ProcurementCategory = {
+  FURNITURE: "FURNITURE",
+  AC_COOLING: "AC_COOLING",
+  ELECTRONICS: "ELECTRONICS",
+  CCTV_SECURITY: "CCTV_SECURITY",
+  INTERNET: "INTERNET",
+  BRANDING: "BRANDING",
+  LAB_EQUIPMENT: "LAB_EQUIPMENT",
+  KITCHEN: "KITCHEN",
+  STATIONERY: "STATIONERY",
+  MISCELLANEOUS: "MISCELLANEOUS",
+} as const;
+
+export const ProcurementStatus = {
+  NEEDED: "NEEDED",
+  QUOTED: "QUOTED",
+  APPROVED: "APPROVED",
+  PURCHASED: "PURCHASED",
+  DELIVERED: "DELIVERED",
+  INSTALLED: "INSTALLED",
+  CANCELLED: "CANCELLED",
+} as const;
+
+export const PaymentStatus = {
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  PAID: "PAID",
+  REJECTED: "REJECTED",
+} as const;
+
+export const ExpenseStatus = PaymentStatus;
+
+export const ActivityAction = {
+  LOGIN: "LOGIN",
+  CREATE: "CREATE",
+  UPDATE: "UPDATE",
+  DELETE: "DELETE",
+  DEACTIVATE: "DEACTIVATE",
+  ROLE_CHANGE: "ROLE_CHANGE",
+  STATUS_CHANGE: "STATUS_CHANGE",
+  UPLOAD: "UPLOAD",
+  APPROVAL: "APPROVAL",
+  SHARE: "SHARE",
+  ACCESS_CHANGE: "ACCESS_CHANGE",
+} as const;
+export type ActivityAction = (typeof ActivityAction)[keyof typeof ActivityAction];

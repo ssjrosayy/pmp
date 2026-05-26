@@ -17,7 +17,7 @@ import {
   ProjectType,
   RoleName,
   TaskStatus,
-} from "@prisma/client";
+} from "../src/lib/enums";
 
 const departments = [
   "Executive",

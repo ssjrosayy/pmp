@@ -1,4 +1,4 @@
-import { RoleName } from "@prisma/client";
+import { RoleName } from "@/lib/enums";
 import type { SessionUser } from "@/lib/auth";
 
 export type ModuleKey =

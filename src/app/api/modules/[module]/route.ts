@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
-import { ActivityAction, RoleName, UserStatus } from "@prisma/client";
+import { ActivityAction, RoleName, UserStatus } from "@/lib/enums";
 import { prisma } from "@/lib/prisma";
 import { readSessionUser } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";

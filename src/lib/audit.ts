@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { ActivityAction, Prisma } from "@prisma/client";
+import { ActivityAction } from "@/lib/enums";
 
 type AuditInput = {
   actorId?: string | null;
@@ -19,7 +19,7 @@ export async function writeAudit(input: AuditInput) {
         entityType: input.entityType,
         entityId: input.entityId ?? null,
         summary: input.summary,
-        metadata: input.metadata as Prisma.InputJsonValue | undefined,
+        metadata: input.metadata,
       },
     });
   } catch (error) {

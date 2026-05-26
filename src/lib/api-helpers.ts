@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { ActivityAction, RoleName } from "@prisma/client";
+import { ActivityAction, RoleName } from "@/lib/enums";
 import { prisma } from "@/lib/prisma";
 import type { SessionUser } from "@/lib/auth";
 import { canViewSensitiveDocuments, documentWhereFor, isAdmin, isSuperAdmin, projectWhereFor, taskWhereFor } from "@/lib/rbac";
