@@ -1,9 +1,17 @@
 import bcrypt from "bcryptjs";
-import { ActivityAction, RoleName } from "@/generated/prisma/enums";
+import { ActivityAction, RoleName } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { SessionUser } from "@/lib/auth";
-import { canViewSensitiveDocuments, documentWhereFor, isAdmin, projectWhereFor, taskWhereFor } from "@/lib/rbac";
+import { canViewSensitiveDocuments, documentWhereFor, isAdmin, isSuperAdmin, projectWhereFor, taskWhereFor } from "@/lib/rbac";
 import type { ModuleConfig, FieldConfig } from "@/lib/modules";
+
+export const INTERNAL_EMAIL_DOMAIN = "axis-internal.com";
+
+export function internalEmailFromUsername(value: unknown) {
+  const username = String(value ?? "").trim().toLowerCase();
+  if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/.test(username)) return null;
+  return `${username}@${INTERNAL_EMAIL_DOMAIN}`;
+}
 
 export function relationIncludes(moduleKey: string) {
   switch (moduleKey) {
@@ -70,7 +78,7 @@ export function searchWhere(searchFields: string[], query: string) {
   if (!trimmed) return {};
   return {
     OR: searchFields.map((field) => ({
-      [field]: { contains: trimmed, mode: "insensitive" },
+      [field]: { contains: trimmed },
     })),
   };
 }
@@ -101,17 +109,16 @@ export async function buildWriteData(config: ModuleConfig, body: Record<string, 
   const data: Record<string, unknown> = {};
 
   for (const field of config.fields) {
-    if (field.name === "password") continue;
+    if (field.name === "password" || field.name === "username") continue;
     if (!(field.name in body)) continue;
     const value = coerceValue(field, body[field.name]);
     if (value === null && field.required && isCreate) continue;
     data[field.name] = value;
   }
 
-  if (config.key === "users") {
-    if (isCreate) {
-      data.passwordHash = await bcrypt.hash(String(body.password || "Axis@12345"), 12);
-    }
+  if (config.key === "users" && isCreate) {
+    data.email = internalEmailFromUsername(body.username);
+    data.passwordHash = await bcrypt.hash(String(body.password), 12);
   }
 
   if (config.key === "tasks" && isCreate) {
@@ -132,8 +139,20 @@ export async function buildWriteData(config: ModuleConfig, body: Record<string, 
   return data;
 }
 
-export function sanitizeRecord(record: Record<string, unknown>, user: SessionUser) {
+function stripPasswordHashes(value: unknown) {
+  if (Array.isArray(value)) {
+    value.forEach(stripPasswordHashes);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+
+  const record = value as Record<string, unknown>;
   if ("passwordHash" in record) delete record.passwordHash;
+  Object.values(record).forEach(stripPasswordHashes);
+}
+
+export function sanitizeRecord(record: Record<string, unknown>, user: SessionUser) {
+  stripPasswordHashes(record);
 
   if ("salaryAmount" in record && !isAdmin(user) && !user.salaryVisible) {
     record.salaryAmount = null;
@@ -147,11 +166,14 @@ export function sanitizeRecord(record: Record<string, unknown>, user: SessionUse
   return record;
 }
 
-export async function getReferenceData() {
+export async function getReferenceData(actor: SessionUser) {
   const [roles, users, departments, projects] = await Promise.all([
     prisma.role.findMany({ orderBy: { label: "asc" } }),
     prisma.user.findMany({
-      where: { status: "ACTIVE" },
+      where: {
+        status: "ACTIVE",
+        ...(isSuperAdmin(actor) ? {} : { role: { name: { not: RoleName.SUPER_ADMIN } } }),
+      },
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true },
     }),
@@ -164,4 +186,18 @@ export async function getReferenceData() {
 
 export function auditAction(isCreate: boolean) {
   return isCreate ? ActivityAction.CREATE : ActivityAction.UPDATE;
+}
+
+export async function assignsSuperAdmin(config: ModuleConfig, data: Record<string, unknown>) {
+  const assignmentField =
+    config.key === "projects" ? "ownerId" : config.key === "tasks" ? "assigneeId" : null;
+  const targetId = assignmentField ? data[assignmentField] : null;
+  if (typeof targetId !== "string" || !targetId) return false;
+
+  return Boolean(
+    await prisma.user.findFirst({
+      where: { id: targetId, role: { name: RoleName.SUPER_ADMIN } },
+      select: { id: true },
+    }),
+  );
 }

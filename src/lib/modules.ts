@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { RoleName } from "@/generated/prisma/enums";
+import { RoleName } from "@prisma/client";
 import type { ModuleKey } from "@/lib/rbac";
 
 export type FieldType =
@@ -23,6 +23,7 @@ export type FieldConfig = {
   options?: string[];
   hiddenOnTable?: boolean;
   sensitive?: boolean;
+  defaultValue?: string | boolean;
 };
 
 export type ModuleConfig = {
@@ -58,9 +59,9 @@ export const enumOptions = {
 export const modules: Record<ModuleKey, ModuleConfig> = {
   users: {
     key: "users",
-    title: "Users",
+    title: "User Administration",
     singular: "User",
-    description: "Employees, guests, roles, departments, activation, and salary visibility controls.",
+    description: "Super-admin-only provisioning, password resets, deactivation, reactivation, non-super-admin account deletion, roles, departments, and access controls.",
     delegate: "user",
     icon: "Users",
     tableFields: ["name", "email", "role", "department", "status", "canViewFinance"],
@@ -68,13 +69,13 @@ export const modules: Record<ModuleKey, ModuleConfig> = {
     defaultSort: { createdAt: "desc" },
     fields: [
       { name: "name", label: "Name", type: "text", required: true },
-      { name: "email", label: "Email", type: "email", required: true },
+      { name: "username", label: "Username", type: "text", required: true },
       { name: "password", label: "Temporary password", type: "password", hiddenOnTable: true },
       { name: "phone", label: "Phone", type: "text" },
       { name: "roleId", label: "Role", type: "select", required: true },
       { name: "departmentId", label: "Department", type: "select" },
       { name: "joiningDate", label: "Joining date", type: "date" },
-      { name: "status", label: "Status", type: "select", options: enumOptions.userStatus },
+      { name: "status", label: "Status", type: "select", options: enumOptions.userStatus, defaultValue: "ACTIVE" },
       { name: "salaryVisible", label: "Can view own salary", type: "boolean", sensitive: true },
       { name: "canViewFinance", label: "Finance access", type: "boolean", sensitive: true },
       { name: "canViewSensitiveDocuments", label: "Sensitive documents", type: "boolean", sensitive: true },

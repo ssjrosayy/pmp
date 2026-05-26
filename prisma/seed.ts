@@ -1,7 +1,6 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../src/generated/prisma/client";
+import { prisma } from "../src/lib/prisma";
 import {
   ActivityAction,
   ApprovalStatus,
@@ -18,17 +17,7 @@ import {
   ProjectType,
   RoleName,
   TaskStatus,
-} from "../src/generated/prisma/enums";
-
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error("DATABASE_URL must be set.");
-}
-
-const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString }),
-});
+} from "@prisma/client";
 
 const departments = [
   "Executive",
@@ -45,7 +34,7 @@ const departments = [
 ];
 
 const roleLabels: Record<RoleName, string> = {
-  SUPER_ADMIN: "Super Admin / CEO",
+  SUPER_ADMIN: "Super Admin",
   ADMIN: "Admin / Operations",
   DEPARTMENT_HEAD: "Department Head",
   PROJECT_MANAGER: "Project Manager",
@@ -61,7 +50,7 @@ async function main() {
   for (const name of Object.values(RoleName)) {
     const role = await prisma.role.upsert({
       where: { name },
-      update: { label: roleLabels[name] },
+      update: { label: roleLabels[name], description: `${roleLabels[name]} access profile` },
       create: { name, label: roleLabels[name], description: `${roleLabels[name]} access profile` },
     });
     roles.set(name, role);
@@ -93,17 +82,25 @@ async function main() {
   const departmentRows = await prisma.department.findMany();
   const departmentByName = new Map(departmentRows.map((department) => [department.name, department]));
 
-  const admin = await prisma.user.upsert({
-    where: { email: "admin@axis.local" },
-    update: {
-      roleId: roles.get(RoleName.SUPER_ADMIN)!.id,
-      canViewFinance: true,
-      canViewSensitiveDocuments: true,
-      salaryVisible: true,
-    },
-    create: {
-      name: "Axis Admin",
-      email: "admin@axis.local",
+  const existingCeo = await prisma.user.findFirst({
+    where: { email: { in: ["ceo@axis-internal.com", "admin@axis.local"] } },
+  });
+  const admin = existingCeo
+    ? await prisma.user.update({
+      where: { id: existingCeo.id },
+      data: {
+        email: "ceo@axis-internal.com",
+        name: "Axis CEO",
+        roleId: roles.get(RoleName.SUPER_ADMIN)!.id,
+        canViewFinance: true,
+        canViewSensitiveDocuments: true,
+        salaryVisible: true,
+      },
+    })
+    : await prisma.user.create({
+      data: {
+      name: "Axis CEO",
+      email: "ceo@axis-internal.com",
       passwordHash,
       phone: "+92 300 0000000",
       roleId: roles.get(RoleName.SUPER_ADMIN)!.id,
@@ -112,8 +109,37 @@ async function main() {
       canViewFinance: true,
       canViewSensitiveDocuments: true,
       salaryVisible: true,
-    },
+      },
+    });
+
+  const existingCto = await prisma.user.findFirst({
+    where: { email: { in: ["cto@axis-internal.com", "cto@axis.local"] } },
   });
+  const cto = existingCto
+    ? await prisma.user.update({
+      where: { id: existingCto.id },
+      data: {
+        email: "cto@axis-internal.com",
+        name: "Axis CTO",
+        roleId: roles.get(RoleName.SUPER_ADMIN)!.id,
+        canViewFinance: true,
+        canViewSensitiveDocuments: true,
+        salaryVisible: true,
+      },
+    })
+    : await prisma.user.create({
+      data: {
+      name: "Axis CTO",
+      email: "cto@axis-internal.com",
+      passwordHash,
+      roleId: roles.get(RoleName.SUPER_ADMIN)!.id,
+      departmentId: departmentByName.get("Software Development")!.id,
+      joiningDate: new Date("2026-01-01"),
+      canViewFinance: true,
+      canViewSensitiveDocuments: true,
+      salaryVisible: true,
+      },
+    });
 
   const people = [
     ["Sara Khan", "sara@axis.local", RoleName.ADMIN, "Operations", true],
@@ -125,7 +151,7 @@ async function main() {
     ["Client Guest", "client@axis.local", RoleName.CLIENT_GUEST, "Business Development", false],
   ] as const;
 
-  const users = [admin];
+  const users = [admin, cto];
   for (const [name, email, role, department, finance] of people) {
     const user = await prisma.user.upsert({
       where: { email },
@@ -145,6 +171,16 @@ async function main() {
   }
 
   const userByEmail = new Map(users.map((user) => [user.email, user]));
+  const employeeCodes: Record<string, string> = {
+    "ceo@axis-internal.com": "AX-100",
+    "cto@axis-internal.com": "AX-CTO",
+    "sara@axis.local": "AX-101",
+    "hamza@axis.local": "AX-102",
+    "ayesha@axis.local": "AX-103",
+    "bilal@axis.local": "AX-104",
+    "mina@axis.local": "AX-105",
+    "raza@axis.local": "AX-106",
+  };
 
   await prisma.department.update({
     where: { id: departmentByName.get("Software Development")!.id },
@@ -161,11 +197,11 @@ async function main() {
       update: {},
       create: {
         userId: user.id,
-        employeeCode: `AX-${users.indexOf(user) + 100}`,
+        employeeCode: employeeCodes[user.email],
         status: user.email.includes("raza") ? EmployeeStatus.INTERN : EmployeeStatus.ACTIVE,
         joiningDate: user.joiningDate,
         probationEndDate: new Date("2026-08-01"),
-        salaryAmount: user.email === "admin@axis.local" ? 750000 : 180000,
+        salaryAmount: user.email === "ceo@axis-internal.com" ? 750000 : 180000,
         contractStatus: "Signed",
         performanceNotes: "Initial onboarding complete.",
       },
@@ -180,7 +216,7 @@ async function main() {
     ["Zovu POS/Reservation System", ProjectType.INTERNAL_PRODUCT, ProjectStatus.PLANNING, Priority.HIGH, "Zovu", "hamza@axis.local", null, 3500000],
     ["Client Drone Presentation", ProjectType.CLIENT_PROJECT, ProjectStatus.ACTIVE, Priority.MEDIUM, "Business Development", "ayesha@axis.local", "Strategic Client", 800000],
     ["Hiring Pipeline", ProjectType.HR, ProjectStatus.ACTIVE, Priority.MEDIUM, "HR/Admin", "sara@axis.local", null, 250000],
-    ["Investor Documentation", ProjectType.FINANCE, ProjectStatus.REVIEW, Priority.HIGH, "Finance", "admin@axis.local", null, 150000],
+    ["Investor Documentation", ProjectType.FINANCE, ProjectStatus.REVIEW, Priority.HIGH, "Finance", "ceo@axis-internal.com", null, 150000],
   ] as const;
 
   const projects = [];
@@ -226,7 +262,7 @@ async function main() {
     ["Implement GCS mission planner board", "seed-drone-gcs", "hamza@axis.local", "Software Development", TaskStatus.IN_PROGRESS, Priority.CRITICAL],
     ["Bench test autonomous fail-safe", "seed-autonomous-drone-r&d", "ayesha@axis.local", "Drone R&D", TaskStatus.WAITING, Priority.CRITICAL],
     ["Design Wedsy vendor dashboard", "seed-wedsy-platform", "mina@axis.local", "Design", TaskStatus.REVIEW, Priority.HIGH],
-    ["Draft investor data room checklist", "seed-investor-documentation", "admin@axis.local", "Finance", TaskStatus.TO_DO, Priority.HIGH],
+    ["Draft investor data room checklist", "seed-investor-documentation", "ceo@axis-internal.com", "Finance", TaskStatus.TO_DO, Priority.HIGH],
   ] as const;
 
   for (const [title, projectId, assigneeEmail, department, status, priority] of taskSeeds) {

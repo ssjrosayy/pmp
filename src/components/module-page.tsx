@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Plus, RefreshCcw, Search, Trash2, X } from "lucide-react";
+import { Download, KeyRound, Plus, RefreshCcw, Search, Trash2, X } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { cn, formatCurrency, titleCase } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ type Field = {
   options?: string[];
   hiddenOnTable?: boolean;
   sensitive?: boolean;
+  defaultValue?: string | boolean;
 };
 
 type Config = {
@@ -71,7 +72,8 @@ function formatCell(record: Record<string, unknown>, field: string) {
 function initialForm(config: Config) {
   const form: Record<string, unknown> = {};
   for (const field of config.fields) {
-    if (field.type === "boolean") form[field.name] = false;
+    if (field.defaultValue !== undefined) form[field.name] = field.defaultValue;
+    else if (field.type === "boolean") form[field.name] = false;
     else form[field.name] = "";
   }
   return form;
@@ -100,6 +102,8 @@ export function ModulePage({ moduleKey }: { moduleKey: string }) {
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
+  const [passwordTarget, setPasswordTarget] = useState<Record<string, unknown> | null>(null);
+  const [temporaryPassword, setTemporaryPassword] = useState("");
   const formDefaults = useMemo(() => (config ? initialForm(config) : {}), [config]);
   const [form, setForm] = useState<Record<string, unknown>>({});
 
@@ -140,7 +144,10 @@ export function ModulePage({ moduleKey }: { moduleKey: string }) {
     setEditing(item);
     const next = { ...formDefaults };
     config?.fields.forEach((field) => {
-      const value = item[field.name];
+      const value =
+        config.key === "users" && field.name === "username"
+          ? String(item.email ?? "").split("@")[0]
+          : item[field.name];
       if (value === null || value === undefined) return;
       if (field.type === "date") next[field.name] = String(value).slice(0, 10);
       else if (field.type === "datetime") next[field.name] = String(value).slice(0, 16);
@@ -173,13 +180,62 @@ export function ModulePage({ moduleKey }: { moduleKey: string }) {
   }
 
   async function remove(item: Record<string, unknown>) {
-    if (!confirm("Delete this record?")) return;
+    const message =
+      config?.key === "users"
+        ? "Deactivate this user? They will no longer be able to sign in."
+        : "Delete this record?";
+    if (!confirm(message)) return;
     const response = await fetch(`/api/modules/${moduleKey}?id=${item.id}`, { method: "DELETE" });
     if (!response.ok) {
-      setError(await readError(response, "Unable to delete record."));
+      setError(await readError(response, config?.key === "users" ? "Unable to deactivate user." : "Unable to delete record."));
       return;
     }
     await load();
+  }
+
+  async function reactivate(item: Record<string, unknown>) {
+    if (!confirm("Reactivate this user? They will be able to sign in again.")) return;
+    const response = await fetch(`/api/modules/${moduleKey}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: item.id, action: "reactivate" }),
+    });
+    if (!response.ok) {
+      setError(await readError(response, "Unable to reactivate user."));
+      return;
+    }
+    await load();
+  }
+
+  async function permanentlyRemove(item: Record<string, unknown>) {
+    if (!confirm("Permanently delete this user account? This cannot be undone.")) return;
+    const response = await fetch(`/api/modules/${moduleKey}?id=${item.id}&permanent=true`, { method: "DELETE" });
+    if (!response.ok) {
+      setError(await readError(response, "Unable to permanently delete user."));
+      return;
+    }
+    await load();
+  }
+
+  async function resetPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!passwordTarget) return;
+    setSaving(true);
+    setError("");
+    const response = await fetch(`/api/modules/${moduleKey}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: passwordTarget.id, password: temporaryPassword }),
+    });
+    setSaving(false);
+
+    if (!response.ok) {
+      setError(await readError(response, "Unable to reset password."));
+      return;
+    }
+
+    setPasswordTarget(null);
+    setTemporaryPassword("");
   }
 
   const kanban = moduleKey === "tasks" && items.length > 0;
@@ -214,6 +270,16 @@ export function ModulePage({ moduleKey }: { moduleKey: string }) {
             <RefreshCcw className="h-4 w-4" />
             Refresh
           </button>
+          {moduleKey === "users" && canWrite ? (
+            <a
+              href="/api/admin/database-export"
+              download
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 text-sm font-medium text-blue-700 hover:bg-blue-50"
+            >
+              <Download className="h-4 w-4" />
+              Download Database Export
+            </a>
+          ) : null}
           {canWrite ? (
             <button
               type="button"
@@ -303,15 +369,79 @@ export function ModulePage({ moduleKey }: { moduleKey: string }) {
                         >
                           Edit
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => remove(item)}
-                          className="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
-                          aria-label="Delete"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {config?.key === "users" ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPasswordTarget(item);
+                                setTemporaryPassword("");
+                              }}
+                              className="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-md text-blue-700 hover:bg-blue-50"
+                              aria-label="Reset password"
+                              title="Reset password"
+                            >
+                              <KeyRound className="h-4 w-4" />
+                            </button>
+                            {(item.role as { name?: string } | undefined)?.name !== "SUPER_ADMIN" ? item.status === "INACTIVE" ? (
+                              <button
+                                type="button"
+                                onClick={() => reactivate(item)}
+                                className="ml-1 rounded-md px-2 py-1 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                                aria-label="Reactivate"
+                                title="Reactivate"
+                              >
+                                Reactivate
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => remove(item)}
+                                className="ml-1 rounded-md px-2 py-1 text-sm font-medium text-amber-700 hover:bg-amber-50"
+                                aria-label="Deactivate"
+                                title="Deactivate"
+                              >
+                                Deactivate
+                              </button>
+                            ) : item.status === "INACTIVE" ? (
+                              <button
+                                type="button"
+                                onClick={() => reactivate(item)}
+                                className="ml-1 rounded-md px-2 py-1 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                                aria-label="Reactivate"
+                                title="Reactivate"
+                              >
+                                Reactivate
+                              </button>
+                            ) : (
+                              <span className="ml-1 px-2 py-1 text-sm font-medium text-slate-500">
+                                Protected
+                              </span>
+                            )}
+                            {(item.role as { name?: string } | undefined)?.name !== "SUPER_ADMIN" ? (
+                              <button
+                                type="button"
+                                onClick={() => permanentlyRemove(item)}
+                                className="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
+                                aria-label="Permanently delete"
+                                title="Permanently delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            ) : null}
+                          </>
+                        ) : null}
+                        {config?.key !== "users" ? (
+                          <button
+                            type="button"
+                            onClick={() => remove(item)}
+                            className="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
+                            aria-label="Delete"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        ) : null}
                       </td>
                     ) : null}
                   </tr>
@@ -347,16 +477,35 @@ export function ModulePage({ moduleKey }: { moduleKey: string }) {
                     value: String(form[field.name] ?? ""),
                     onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
                       setForm((current) => ({ ...current, [field.name]: event.target.value })),
-                    required: field.required,
+                    required: field.required || (config.key === "users" && field.name === "password" && !editing),
                     className: "mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100",
                   };
                   return (
                     <label key={field.name} className={cn("block", field.type === "textarea" ? "md:col-span-2" : "")}>
                       <span className="text-sm font-medium text-slate-700">
-                        {field.label}
+                        {config.key === "users" && field.name === "username" && editing ? "Email" : field.label}
                         {field.sensitive ? <span className="ml-2 text-xs text-amber-600">Restricted</span> : null}
                       </span>
-                      {field.type === "textarea" ? (
+                      {config.key === "users" && field.name === "username" && editing ? (
+                        <input
+                          value={String(editing.email ?? "")}
+                          type="email"
+                          disabled
+                          className="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500"
+                        />
+                      ) : config.key === "users" && field.name === "username" ? (
+                        <span className="mt-2 flex overflow-hidden rounded-lg border border-slate-200 bg-white text-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
+                          <input
+                            {...common}
+                            type="text"
+                            className="w-full px-3 py-2 outline-none"
+                            autoComplete="off"
+                          />
+                          <span className="flex items-center border-l border-slate-200 bg-slate-50 px-3 text-slate-500">
+                            @axis-internal.com
+                          </span>
+                        </span>
+                      ) : field.type === "textarea" ? (
                         <textarea {...common} rows={4} />
                       ) : field.type === "select" ? (
                         <select {...common}>
@@ -402,6 +551,57 @@ export function ModulePage({ moduleKey }: { moduleKey: string }) {
                   className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
                 >
                   {saving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+      {passwordTarget && config?.key === "users" ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <div>
+                <h2 className="text-lg font-semibold">Reset Password</h2>
+                <p className="text-sm text-slate-500">{String(passwordTarget.name)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPasswordTarget(null)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-slate-100"
+                aria-label="Close"
+                title="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <form onSubmit={resetPassword} className="p-5">
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">New temporary password</span>
+                <input
+                  value={temporaryPassword}
+                  onChange={(event) => setTemporaryPassword(event.target.value)}
+                  type="password"
+                  minLength={8}
+                  required
+                  className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+              <p className="mt-3 text-xs leading-5 text-slate-500">Share the temporary password securely and have the user replace it after sign-in.</p>
+              <div className="mt-6 flex justify-end gap-2 border-t border-slate-200 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setPasswordTarget(null)}
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+                >
+                  {saving ? "Resetting..." : "Reset Password"}
                 </button>
               </div>
             </form>

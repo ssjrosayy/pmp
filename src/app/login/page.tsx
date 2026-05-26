@@ -6,7 +6,7 @@ import { LockKeyhole, Mail } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@axis.local");
+  const [email, setEmail] = useState("ceo@axis-internal.com");
   const [password, setPassword] = useState("Axis@12345");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { jwtVerify, SignJWT } from "jose";
 import { prisma } from "@/lib/prisma";
-import { RoleName, UserStatus } from "@/generated/prisma/enums";
+import { RoleName, UserStatus } from "@prisma/client";
 
 const SESSION_COOKIE = "axis_session";
 const encoder = new TextEncoder();

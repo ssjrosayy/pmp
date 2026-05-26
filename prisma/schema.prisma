@@ -1,10 +1,10 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 enum RoleName {
@@ -163,7 +163,7 @@ enum ActivityAction {
 }
 
 model Role {
-  id          String           @id @default(cuid())
+  id          String           @id @default(cuid()) @map("_id")
   name        RoleName         @unique
   label       String
   description String?
@@ -174,7 +174,7 @@ model Role {
 }
 
 model Permission {
-  id          String             @id @default(cuid())
+  id          String             @id @default(cuid()) @map("_id")
   resource    String
   action      PermissionAction
   description String?
@@ -185,16 +185,17 @@ model Permission {
 }
 
 model RolePermission {
+  id           String     @id @default(cuid()) @map("_id")
   roleId       String
   permissionId String
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: NoAction)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: NoAction)
 
-  @@id([roleId, permissionId])
+  @@unique([roleId, permissionId])
 }
 
 model User {
-  id                       String                    @id @default(cuid())
+  id                       String                    @id @default(cuid()) @map("_id")
   name                     String
   email                    String                    @unique
   passwordHash             String
@@ -208,7 +209,7 @@ model User {
   roleId                   String
   departmentId             String?
   role                     Role                      @relation(fields: [roleId], references: [id])
-  department               Department?               @relation("DepartmentMembers", fields: [departmentId], references: [id])
+  department               Department?               @relation("DepartmentMembers", fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   leadingDepartments       Department[]              @relation("DepartmentHead")
   ownedProjects            Project[]                 @relation("ProjectOwner")
   projectMemberships       ProjectMember[]
@@ -234,10 +235,10 @@ model User {
 }
 
 model Department {
-  id          String      @id @default(cuid())
+  id          String      @id @default(cuid()) @map("_id")
   name        String      @unique
   headId      String?
-  head        User?       @relation("DepartmentHead", fields: [headId], references: [id])
+  head        User?       @relation("DepartmentHead", fields: [headId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   members     User[]      @relation("DepartmentMembers")
   projects    Project[]
   tasks       Task[]
@@ -248,7 +249,7 @@ model Department {
 }
 
 model Project {
-  id          String          @id @default(cuid())
+  id          String          @id @default(cuid()) @map("_id")
   name        String
   type        ProjectType
   status      ProjectStatus   @default(PLANNING)
@@ -258,7 +259,7 @@ model Project {
   ownerId     String
   departmentId String?
   clientName  String?
-  budget      Decimal?        @db.Decimal(14, 2)
+  budget      Float?
   description String?
   owner       User            @relation("ProjectOwner", fields: [ownerId], references: [id])
   department  Department?     @relation(fields: [departmentId], references: [id])
@@ -278,12 +279,12 @@ model Project {
 }
 
 model ProjectMember {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid()) @map("_id")
   projectId String
   userId    String
   access    String   @default("member")
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: NoAction)
+  user      User     @relation(fields: [userId], references: [id], onDelete: NoAction)
   createdAt DateTime @default(now())
 
   @@unique([projectId, userId])
@@ -291,19 +292,19 @@ model ProjectMember {
 }
 
 model Milestone {
-  id          String    @id @default(cuid())
+  id          String    @id @default(cuid()) @map("_id")
   projectId   String
   title       String
   description String?
   dueDate     DateTime?
   completedAt DateTime?
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: NoAction)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
 
 model Task {
-  id                  String        @id @default(cuid())
+  id                  String        @id @default(cuid()) @map("_id")
   title               String
   description         String?
   projectId           String?
@@ -315,7 +316,7 @@ model Task {
   dueDate             DateTime?
   timeEstimateMinutes Int?
   timeSpentMinutes    Int?
-  tags                String[]      @default([])
+  tags                Json          @default("[]")
   approvalRequired    Boolean       @default(false)
   recurringRule       String?
   project             Project?      @relation(fields: [projectId], references: [id])
@@ -339,54 +340,54 @@ model Task {
 }
 
 model TaskDependency {
-  id           String @id @default(cuid())
+  id           String @id @default(cuid()) @map("_id")
   taskId       String
   dependsOnId  String
-  task         Task   @relation("TaskDependency", fields: [taskId], references: [id], onDelete: Cascade)
-  dependsOn    Task   @relation("TaskDependent", fields: [dependsOnId], references: [id], onDelete: Cascade)
+  task         Task   @relation("TaskDependency", fields: [taskId], references: [id], onDelete: NoAction)
+  dependsOn    Task   @relation("TaskDependent", fields: [dependsOnId], references: [id], onDelete: NoAction)
 
   @@unique([taskId, dependsOnId])
 }
 
 model Subtask {
-  id          String   @id @default(cuid())
+  id          String   @id @default(cuid()) @map("_id")
   taskId      String
   title       String
   completed   Boolean  @default(false)
-  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: NoAction)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
 model ChecklistItem {
-  id          String   @id @default(cuid())
+  id          String   @id @default(cuid()) @map("_id")
   taskId      String
   label       String
   completed   Boolean  @default(false)
-  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: NoAction)
   createdAt   DateTime @default(now())
 }
 
 model Comment {
-  id          String    @id @default(cuid())
+  id          String    @id @default(cuid()) @map("_id")
   body        String
   authorId    String
   projectId   String?
   taskId      String?
   documentId  String?
   meetingId   String?
-  mentions    String[]  @default([])
+  mentions    Json      @default("[]")
   author      User      @relation(fields: [authorId], references: [id])
-  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  task        Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  document    Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  meeting     Meeting?  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: NoAction)
+  task        Task?     @relation(fields: [taskId], references: [id], onDelete: NoAction)
+  document    Document? @relation(fields: [documentId], references: [id], onDelete: NoAction)
+  meeting     Meeting?  @relation(fields: [meetingId], references: [id], onDelete: NoAction)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
 
 model Document {
-  id            String               @id @default(cuid())
+  id            String               @id @default(cuid()) @map("_id")
   title         String
   category      DocumentCategory
   status        ApprovalStatus       @default(DRAFT)
@@ -413,27 +414,27 @@ model Document {
 }
 
 model DocumentVersion {
-  id          String   @id @default(cuid())
+  id          String   @id @default(cuid()) @map("_id")
   documentId  String
   version     Int
   content     String?
   fileUrl     String?
   createdById String?
-  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document    Document @relation(fields: [documentId], references: [id], onDelete: NoAction)
   createdAt   DateTime @default(now())
 
   @@unique([documentId, version])
 }
 
 model DocumentPermission {
-  id         String   @id @default(cuid())
+  id         String   @id @default(cuid()) @map("_id")
   documentId String
   userId     String?
   roleId     String?
   canRead    Boolean  @default(true)
   canWrite   Boolean  @default(false)
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document   Document @relation(fields: [documentId], references: [id], onDelete: NoAction)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: NoAction)
   createdAt  DateTime @default(now())
 
   @@index([documentId])
@@ -441,32 +442,32 @@ model DocumentPermission {
 }
 
 model HRProfile {
-  id                String         @id @default(cuid())
+  id                String         @id @default(cuid()) @map("_id")
   userId            String         @unique
   employeeCode      String?        @unique
   status            EmployeeStatus @default(ACTIVE)
   joiningDate       DateTime?
   probationEndDate  DateTime?
-  salaryAmount      Decimal?       @db.Decimal(14, 2)
+  salaryAmount      Float?
   salaryCurrency    String         @default("PKR")
   attendanceNotes   String?
   performanceNotes  String?
   warnings          String?
   contractStatus    String?
-  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User           @relation(fields: [userId], references: [id], onDelete: NoAction)
   documents         Document[]
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 }
 
 model Candidate {
-  id                  String         @id @default(cuid())
+  id                  String         @id @default(cuid()) @map("_id")
   name                String
   roleAppliedFor      String
   phone               String?
   email               String?
   cvUrl               String?
-  expectedSalary      Decimal?       @db.Decimal(14, 2)
+  expectedSalary      Float?
   interviewNotes      String?
   rating              Int?
   stage               CandidateStage @default(APPLIED)
@@ -477,12 +478,12 @@ model Candidate {
 }
 
 model ProcurementItem {
-  id            String              @id @default(cuid())
+  id            String              @id @default(cuid()) @map("_id")
   itemName      String
   category      ProcurementCategory
   vendor        String?
-  estimatedCost Decimal?            @db.Decimal(14, 2)
-  actualCost    Decimal?            @db.Decimal(14, 2)
+  estimatedCost Float?
+  actualCost    Float?
   status        ProcurementStatus   @default(NEEDED)
   assignedPersonId String?
   dueDate       DateTime?
@@ -495,9 +496,9 @@ model ProcurementItem {
 }
 
 model Expense {
-  id            String        @id @default(cuid())
+  id            String        @id @default(cuid()) @map("_id")
   title         String
-  amount        Decimal       @db.Decimal(14, 2)
+  amount        Float
   category      String
   projectId     String?
   departmentId  String?
@@ -515,7 +516,7 @@ model Expense {
 }
 
 model Meeting {
-  id              String             @id @default(cuid())
+  id              String             @id @default(cuid()) @map("_id")
   title           String
   scheduledAt     DateTime
   organizerId     String?
@@ -535,44 +536,44 @@ model Meeting {
 }
 
 model MeetingParticipant {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid()) @map("_id")
   meetingId String
   userId    String
-  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: NoAction)
+  user      User     @relation(fields: [userId], references: [id], onDelete: NoAction)
 
   @@unique([meetingId, userId])
 }
 
 model MeetingActionItem {
-  id          String   @id @default(cuid())
+  id          String   @id @default(cuid()) @map("_id")
   meetingId   String
   taskId      String?
   title       String
   ownerId     String?
   dueDate     DateTime?
   completed   Boolean  @default(false)
-  meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: NoAction)
   task        Task?    @relation(fields: [taskId], references: [id])
   createdAt   DateTime @default(now())
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid()) @map("_id")
   userId    String
   title     String
   body      String?
   type      String
   readAt    DateTime?
   href      String?
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: NoAction)
   createdAt DateTime @default(now())
 
   @@index([userId, readAt])
 }
 
 model AuditLog {
-  id         String         @id @default(cuid())
+  id         String         @id @default(cuid()) @map("_id")
   actorId    String?
   action     ActivityAction
   entityType String

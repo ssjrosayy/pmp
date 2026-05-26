@@ -1,5 +1,6 @@
 "use client";
 
+import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -10,6 +11,7 @@ import {
   FileText,
   Gauge,
   IdCard,
+  KeyRound,
   ListChecks,
   LogOut,
   Search,
@@ -18,6 +20,7 @@ import {
   UserRoundSearch,
   Users,
   WalletCards,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +43,7 @@ const nav = [
   { href: "/dashboard/procurement", label: "Procurement", icon: ShoppingCart, hideFor: ["CLIENT_GUEST"] },
   { href: "/dashboard/expenses", label: "Finance", icon: WalletCards, finance: true },
   { href: "/dashboard/meetings", label: "Meetings", icon: CalendarClock },
-  { href: "/dashboard/users", label: "Users", icon: Users, hideFor: ["CLIENT_GUEST"] },
+  { href: "/dashboard/users", label: "User Administration", icon: Users, superAdminOnly: true },
   { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
   { href: "/dashboard/auditLogs", label: "Audit Logs", icon: ShieldCheck, adminOnly: true },
 ];
@@ -48,9 +51,17 @@ const nav = [
 export function AppShell({ children, user }: { children: React.ReactNode; user: User }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
   const visibleNav = nav.filter((item) => {
     if (item.finance && !user.canViewFinance && user.role !== "SUPER_ADMIN") return false;
     if (item.adminOnly && !["SUPER_ADMIN", "ADMIN"].includes(user.role)) return false;
+    if (item.superAdminOnly && user.role !== "SUPER_ADMIN") return false;
     if (item.hideFor?.includes(user.role)) return false;
     return true;
   });
@@ -59,6 +70,35 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
     router.refresh();
+  }
+
+  async function changePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPasswordError("");
+    setPasswordMessage("");
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match.");
+      return;
+    }
+
+    setPasswordSaving(true);
+    const response = await fetch("/api/auth/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    setPasswordSaving(false);
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({ error: "Unable to change password." }));
+      setPasswordError(data.error ?? "Unable to change password.");
+      return;
+    }
+
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordMessage("Password updated.");
   }
 
   return (
@@ -116,6 +156,19 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
             </div>
             <button
               type="button"
+              onClick={() => {
+                setPasswordOpen(true);
+                setPasswordError("");
+                setPasswordMessage("");
+              }}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"
+              aria-label="Change password"
+              title="Change password"
+            >
+              <KeyRound className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
               onClick={logout}
               className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"
               aria-label="Log out"
@@ -127,6 +180,82 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
         </header>
         <main className="px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
+      {passwordOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <div>
+                <h2 className="text-lg font-semibold">Change Password</h2>
+                <p className="text-sm text-slate-500">{user.email}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPasswordOpen(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-slate-100"
+                aria-label="Close"
+                title="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <form onSubmit={changePassword} className="space-y-4 p-5">
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Current password</span>
+                <input
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">New password</span>
+                <input
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                  className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Confirm new password</span>
+                <input
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                  className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+              {passwordError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{passwordError}</p> : null}
+              {passwordMessage ? <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">{passwordMessage}</p> : null}
+              <div className="flex justify-end gap-2 border-t border-slate-200 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setPasswordOpen(false)}
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={passwordSaving}
+                  className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+                >
+                  {passwordSaving ? "Updating..." : "Update Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

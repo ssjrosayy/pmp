@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ActivityAction, UserStatus } from "@/generated/prisma/enums";
+import { ActivityAction, UserStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { setSessionCookie } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
@@ -54,8 +54,7 @@ export async function POST(request: Request) {
     console.error("Login failed", error);
     return NextResponse.json(
       {
-        error:
-          "Database is not reachable. Start Postgres with `npm run db:dev`, then run migrations and seed data.",
+        error: "The platform database is temporarily unavailable. Please try again.",
       },
       { status: 503 },
     );

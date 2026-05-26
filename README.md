@@ -6,8 +6,8 @@ Full-stack internal project management and company operations platform for Axis.
 
 - Next.js App Router with TypeScript
 - Tailwind CSS
-- PostgreSQL
-- Prisma ORM
+- Azure Cosmos DB for MongoDB API
+- Prisma ORM 6 MongoDB connector
 - JWT session cookie authentication
 - Centralized role-based access control
 
@@ -25,49 +25,57 @@ npm install
 cp .env.example .env
 ```
 
-3. Set `DATABASE_URL` to PostgreSQL on Supabase, Railway, Render, Neon, or a local database.
+3. Set an Azure Cosmos DB for MongoDB connection string with a database name:
 
-For local development without Docker/Postgres installed, start Prisma's bundled Postgres server:
-
-```bash
-npm run db:dev
+```dotenv
+DATABASE_URL="mongodb://<account>:<key>@<account>.mongo.cosmos.azure.com:10255/axis_ops?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@<account>@"
 ```
 
-If Prisma prints a generated local URL, place that value in `.env` as `DATABASE_URL`.
-
-4. Generate Prisma client and sync the database:
+4. Generate the Prisma client and, for a new empty Cosmos database only, create its collections and indexes:
 
 ```bash
 npm run prisma:generate
-npm run prisma:migrate
+npm run prisma:push
 ```
 
-When using Prisma's local dev server, `npx prisma db push` is also supported for first-time local setup.
-
-5. Seed Axis data:
+5. To import a retained local SQLite dataset once into Cosmos DB, run:
 
 ```bash
-npm run db:seed
+npm run db:import-sqlite
 ```
 
-6. Start development:
+6. For a new empty environment that needs the demonstration seed instead, run `npm run db:seed`. Then start development:
 
 ```bash
 npm run dev
 ```
 
-Default seeded login:
+Default seeded super-admin logins:
 
-- Email: `admin@axis.local`
-- Password: `Axis@12345`
+- CEO: `ceo@axis-internal.com` / `Axis@12345`
+- CTO: `cto@axis-internal.com` / `Axis@12345`
 
 ## Deployment
 
-- Vercel: deploy the Next.js app and set `DATABASE_URL` and `JWT_SECRET`.
-- Railway/Render/Supabase/Postgres: provision PostgreSQL and paste its connection string into `DATABASE_URL`.
-- Run migrations during release with `npx prisma migrate deploy`.
-- Run `npm run db:seed` only for first-time setup or demo environments.
+- All application modules use the configured Cosmos DB database as the shared persistent store.
+- Prisma ORM 7 does not currently support MongoDB; this application intentionally uses Prisma ORM 6.19 for the Cosmos DB for MongoDB connector.
+- Set `JWT_SECRET` to a secure value in every deployed environment.
+- Store `DATABASE_URL` in App Service configuration or Key Vault references, not committed source files.
+- Run `npm run db:seed` only for a new demo environment; use `npm run db:import-sqlite` once when moving the existing local dataset.
+
+### Azure App Service With Cosmos DB
+
+For Azure App Service deployment:
+
+- Use a Linux Node.js App Service and the startup command `npm run start:azure`.
+- Set `DATABASE_URL` to the Cosmos DB for MongoDB connection string including `/axis_ops`, plus a secure `JWT_SECRET`, in App Service configuration.
+- Provision collections and indexes once with `npm run prisma:push`, then use the startup command for normal application starts.
+- Cosmos DB is shared storage, so App Service can scale without relying on a local database file.
+
+Super admins can download a full Extended JSON export of all Cosmos DB collections from User Administration. Extended JSON preserves database value types such as dates.
 
 ## Access Model
 
-The platform includes roles for Super Admin/CEO, Admin/Ops, Department Head, Project Manager, Employee, Intern, and Client/Guest. API routes enforce read/write access by module, project membership, department, finance access, and sensitive document flags.
+The platform includes roles for Super Admin, Admin/Ops, Department Head, Project Manager, Employee, Intern, and Client/Guest. Only seeded CEO/CTO super admins can administer user accounts; API routes also enforce access by module, project membership, department, finance access, and sensitive document flags.
+
+Super admins create users using an internal username; accounts receive the fixed `@axis-internal.com` domain. Signed-in users can change their own password after confirming their existing password.

@@ -32,6 +32,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# retained local SQLite migration source / generated snapshots
+/dev.db*
 
 # vercel
 .vercel

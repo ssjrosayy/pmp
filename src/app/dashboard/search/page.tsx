@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { readSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canViewFinance, documentWhereFor, projectWhereFor, taskWhereFor } from "@/lib/rbac";
+import { canViewFinance, documentWhereFor, isSuperAdmin, projectWhereFor, taskWhereFor } from "@/lib/rbac";
 
 type SearchProps = {
   searchParams: Promise<{ q?: string }>;
@@ -14,13 +14,13 @@ export default async function SearchPage({ searchParams }: SearchProps) {
   const { q = "" } = await searchParams;
   const query = q.trim();
 
-  const contains = { contains: query, mode: "insensitive" as const };
+  const contains = { contains: query };
   const [projects, tasks, documents, users, candidates, meetings, expenses] = query
     ? await Promise.all([
         prisma.project.findMany({ where: { AND: [projectWhereFor(user), { OR: [{ name: contains }, { description: contains }, { clientName: contains }] }] }, take: 8 }),
         prisma.task.findMany({ where: { AND: [taskWhereFor(user), { OR: [{ title: contains }, { description: contains }] }] }, take: 8 }),
         prisma.document.findMany({ where: { AND: [documentWhereFor(user), { OR: [{ title: contains }, { content: contains }, { fileName: contains }] }] }, take: 8 }),
-        prisma.user.findMany({ where: { OR: [{ name: contains }, { email: contains }] }, take: 8, include: { role: true } }),
+        isSuperAdmin(user) ? prisma.user.findMany({ where: { OR: [{ name: contains }, { email: contains }] }, take: 8, include: { role: true } }) : Promise.resolve([]),
         prisma.candidate.findMany({ where: { OR: [{ name: contains }, { roleAppliedFor: contains }, { email: contains }] }, take: 8 }),
         prisma.meeting.findMany({ where: { OR: [{ title: contains }, { agenda: contains }, { notes: contains }] }, take: 8 }),
         canViewFinance(user) ? prisma.expense.findMany({ where: { OR: [{ title: contains }, { category: contains }] }, take: 8 }) : Promise.resolve([]),
@@ -31,7 +31,7 @@ export default async function SearchPage({ searchParams }: SearchProps) {
     { title: "Projects", href: "/dashboard/projects", items: projects, label: "name" },
     { title: "Tasks", href: "/dashboard/tasks", items: tasks, label: "title" },
     { title: "Documents", href: "/dashboard/documents", items: documents, label: "title" },
-    { title: "Employees", href: "/dashboard/users", items: users, label: "name" },
+    ...(isSuperAdmin(user) ? [{ title: "Users", href: "/dashboard/users", items: users, label: "name" }] : []),
     { title: "Candidates", href: "/dashboard/candidates", items: candidates, label: "name" },
     { title: "Meetings", href: "/dashboard/meetings", items: meetings, label: "title" },
     { title: "Expenses", href: "/dashboard/expenses", items: expenses, label: "title" },

@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@/generated/prisma/client";
-import { ActivityAction } from "@/generated/prisma/enums";
+import { ActivityAction, Prisma } from "@prisma/client";
 
 type AuditInput = {
   actorId?: string | null;
