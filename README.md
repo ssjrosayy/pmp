@@ -38,13 +38,7 @@ npm run prisma:generate
 npm run prisma:push
 ```
 
-5. To import a retained local SQLite dataset once into Cosmos DB, run:
-
-```bash
-npm run db:import-sqlite
-```
-
-6. For a new empty environment that needs the demonstration seed instead, run `npm run db:seed`. Then start development:
+5. For a new empty environment that needs the demonstration seed, run `npm run db:seed`. Then start development:
 
 ```bash
 npm run dev
@@ -61,7 +55,7 @@ Default seeded super-admin logins:
 - Prisma ORM 7 does not currently support MongoDB; this application intentionally uses Prisma ORM 6.19 for the Cosmos DB for MongoDB connector.
 - Set `JWT_SECRET` to a secure value in every deployed environment.
 - Store `DATABASE_URL` in App Service configuration or Key Vault references, not committed source files.
-- Run `npm run db:seed` only for a new demo environment; use `npm run db:import-sqlite` once when moving the existing local dataset.
+- Run `npm run db:seed` only for a new demo environment. The existing platform data has already been migrated into Cosmos DB.
 
 ### Azure App Service With Cosmos DB
 
