@@ -60,8 +60,9 @@ Default seeded super-admin logins:
 
 For Azure App Service deployment:
 
-- Use a Linux Node.js App Service and the startup command `npm run start:azure`.
+- Use a Linux Node.js App Service and the startup command `npm run start:azure` or `npm start`.
 - Set `DATABASE_URL` to the Cosmos DB for MongoDB connection string including `/axis_ops`, plus a secure `JWT_SECRET`, in App Service configuration.
+- When switching deployment sources, enable App Service build during deployment so Azure regenerates `oryx-manifest.toml` and `node_modules.tar.gz` from the current GitHub commit.
 - Provision indexes once with `npm run db:indexes`, then use the startup command for normal application starts.
 - Cosmos DB is shared storage, so App Service can scale without relying on a local database file.
 

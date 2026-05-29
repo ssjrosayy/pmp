@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/start-azure.mjs",
     "start:azure": "node scripts/start-azure.mjs",
     "lint": "eslint",
     "db:indexes": "tsx scripts/setup-cosmos-indexes.ts",
