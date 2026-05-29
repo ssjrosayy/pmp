@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { readSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canViewFinance, projectWhereFor, taskWhereFor } from "@/lib/rbac";
+import { canViewFinance, isSuperAdmin, projectWhereFor, taskWhereFor } from "@/lib/rbac";
 import { formatCurrency } from "@/lib/utils";
 import { StatusBadge } from "@/components/status-badge";
 
@@ -33,7 +33,9 @@ export default async function DashboardPage() {
       prisma.task.count({ where: { AND: [taskWhereFor(user), { approvalRequired: true, status: "REVIEW" }] } }),
       prisma.procurementItem.findMany({ orderBy: { updatedAt: "desc" }, take: 5 }),
       prisma.meeting.findMany({ where: { scheduledAt: { gte: now } }, orderBy: { scheduledAt: "asc" }, take: 5, include: { project: true } }),
-      prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: { actor: true } }),
+      isSuperAdmin(user)
+        ? prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: { actor: true } })
+        : Promise.resolve([]),
       canViewFinance(user)
         ? prisma.expense.aggregate({ _sum: { amount: true }, _count: true, where: { status: { in: ["PENDING", "APPROVED", "PAID"] } } })
         : Promise.resolve(null),
@@ -111,23 +113,25 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <h2 className="text-base font-semibold">Recent activity</h2>
-        </div>
-        <div className="divide-y divide-slate-100">
-          {activity.map((log) => (
-            <div key={log.id} className="flex items-start justify-between gap-4 px-5 py-4">
-              <div>
-                <p className="text-sm font-medium">{log.summary}</p>
-                <p className="mt-1 text-xs text-slate-500">{log.actor?.name ?? "System"} · {log.entityType}</p>
+      {isSuperAdmin(user) ? (
+        <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-5 py-4">
+            <h2 className="text-base font-semibold">Recent activity</h2>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {activity.map((log) => (
+              <div key={log.id} className="flex items-start justify-between gap-4 px-5 py-4">
+                <div>
+                  <p className="text-sm font-medium">{log.summary}</p>
+                  <p className="mt-1 text-xs text-slate-500">{log.actor?.name ?? "System"} · {log.entityType}</p>
+                </div>
+                <StatusBadge value={log.action} />
               </div>
-              <StatusBadge value={log.action} />
-            </div>
-          ))}
-          {activity.length === 0 ? <p className="px-5 py-8 text-sm text-slate-500">No activity yet.</p> : null}
-        </div>
-      </section>
+            ))}
+            {activity.length === 0 ? <p className="px-5 py-8 text-sm text-slate-500">No activity yet.</p> : null}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

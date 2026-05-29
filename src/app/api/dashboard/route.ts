@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { readSessionUser } from "@/lib/auth";
-import { canViewFinance, projectWhereFor, taskWhereFor } from "@/lib/rbac";
+import { canViewFinance, isSuperAdmin, projectWhereFor, taskWhereFor } from "@/lib/rbac";
 
 export async function GET() {
   const user = await readSessionUser();
@@ -23,7 +23,9 @@ export async function GET() {
       prisma.task.count({ where: { AND: [taskWhere, { approvalRequired: true, status: "REVIEW" }] } }),
       prisma.procurementItem.groupBy({ by: ["status"], _count: true }),
       prisma.meeting.findMany({ where: { scheduledAt: { gte: now } }, orderBy: { scheduledAt: "asc" }, take: 5, include: { project: true } }),
-      prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: { actor: true } }),
+      isSuperAdmin(user)
+        ? prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: { actor: true } })
+        : Promise.resolve([]),
       prisma.task.groupBy({ by: ["assigneeId"], where: taskWhere, _count: true }),
     ]);
 

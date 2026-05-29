@@ -17,6 +17,7 @@ import {
   ProjectType,
   RoleName,
   TaskStatus,
+  UserStatus,
 } from "../src/lib/enums";
 
 const departments = [
@@ -91,6 +92,8 @@ async function main() {
       data: {
         email: "ceo@axis-internal.com",
         name: "Axis CEO",
+        passwordHash,
+        status: UserStatus.ACTIVE,
         roleId: roles.get(RoleName.SUPER_ADMIN)!.id,
         canViewFinance: true,
         canViewSensitiveDocuments: true,
@@ -121,6 +124,8 @@ async function main() {
       data: {
         email: "cto@axis-internal.com",
         name: "Axis CTO",
+        passwordHash,
+        status: UserStatus.ACTIVE,
         roleId: roles.get(RoleName.SUPER_ADMIN)!.id,
         canViewFinance: true,
         canViewSensitiveDocuments: true,
