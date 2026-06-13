@@ -21,6 +21,9 @@ export type SessionUser = {
 
 function getSecret() {
   const secret = process.env.JWT_SECRET;
+  if (!process.env.DATABASE_URL?.startsWith("mongodb")) {
+    return encoder.encode(secret ?? "local-demo-secret-for-axis-preview");
+  }
   if (!secret || secret.length < 24) {
     throw new Error("JWT_SECRET must be set to at least 24 characters.");
   }

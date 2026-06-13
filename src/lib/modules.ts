@@ -13,7 +13,8 @@ export type FieldType =
   | "money"
   | "select"
   | "boolean"
-  | "tags";
+  | "tags"
+  | "list";
 
 export type FieldConfig = {
   name: string;
@@ -171,18 +172,45 @@ export const modules: Record<ModuleKey, ModuleConfig> = {
     key: "hr",
     title: "HR Records",
     singular: "HR Record",
-    description: "Employee status, probation, contracts, restricted salaries, performance, and warnings.",
+    description: "Employee status, probation, contracts, restricted salaries, performance, leave, assets, and payroll.",
     delegate: "hRProfile",
     icon: "IdCard",
     tableFields: ["user", "employeeCode", "status", "joiningDate", "contractStatus"],
-    searchFields: ["employeeCode", "contractStatus", "performanceNotes"],
+    searchFields: ["employeeCode", "fullName", "cnic", "designation", "contractStatus", "performanceNotes"],
     fields: [
-      { name: "userId", label: "Employee", type: "select", required: true },
+      { name: "userId", label: "Employee name", type: "text", required: true },
+      { name: "fullName", label: "Full name", type: "text" },
       { name: "employeeCode", label: "Employee code", type: "text" },
+      { name: "contactDetails", label: "Contact details", type: "textarea" },
+      { name: "emergencyContacts", label: "Emergency contacts", type: "list", hiddenOnTable: true },
+      { name: "cnic", label: "CNIC", type: "text", sensitive: true },
+      { name: "bankAccountDetails", label: "Bank account details", type: "textarea", sensitive: true },
       { name: "status", label: "Status", type: "select", options: enumOptions.employeeStatus },
       { name: "joiningDate", label: "Joining date", type: "date" },
+      { name: "probationStartDate", label: "Probation start date", type: "date" },
       { name: "probationEndDate", label: "Probation end date", type: "date" },
+      { name: "confirmationDate", label: "Confirmation date", type: "date" },
+      { name: "resignationDate", label: "Resignation date", type: "date" },
+      { name: "leavingDate", label: "Leaving date", type: "date" },
+      { name: "designation", label: "Current designation/title", type: "text" },
+      { name: "departmentId", label: "Department", type: "select" },
+      { name: "reportingManagerId", label: "Reporting manager", type: "select" },
+      { name: "employmentType", label: "Employment type", type: "select", options: ["FULL_TIME", "PART_TIME", "CONTRACT", "REMOTE"] },
+      { name: "casualLeaveBalance", label: "Casual leave balance", type: "number" },
+      { name: "medicalLeaveBalance", label: "Medical leave balance", type: "number" },
+      { name: "annualLeaveBalance", label: "Annual leave balance", type: "number" },
+      { name: "leaveRequests", label: "Leave requests", type: "list", hiddenOnTable: true },
+      { name: "attendanceLogs", label: "Daily attendance / clock-in logs", type: "list", hiddenOnTable: true },
+      { name: "performanceHistory", label: "Performance reviews, KPIs, and goals", type: "list", hiddenOnTable: true },
+      { name: "promotionHistory", label: "Promotion history", type: "list", hiddenOnTable: true },
+      { name: "assetLedger", label: "Assigned company assets", type: "list", hiddenOnTable: true },
       { name: "salaryAmount", label: "Salary amount", type: "money", sensitive: true },
+      { name: "baseSalary", label: "Base salary", type: "money", sensitive: true },
+      { name: "allowances", label: "Allowances", type: "money", sensitive: true },
+      { name: "bonuses", label: "Bonuses", type: "money", sensitive: true },
+      { name: "deductions", label: "Deductions", type: "money", sensitive: true },
+      { name: "payrollNotes", label: "Payroll notes", type: "textarea", sensitive: true },
+      { name: "payslips", label: "Payslip records", type: "list", hiddenOnTable: true, sensitive: true },
       { name: "contractStatus", label: "Contract status", type: "text" },
       { name: "attendanceNotes", label: "Attendance notes", type: "textarea" },
       { name: "performanceNotes", label: "Performance notes", type: "textarea" },

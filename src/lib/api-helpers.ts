@@ -26,7 +26,7 @@ export function relationIncludes(moduleKey: string) {
     case "documents":
       return { uploader: true, project: true, _count: { select: { versions: true, comments: true } } };
     case "hr":
-      return { user: { include: { department: true, role: true } }, _count: { select: { documents: true } } };
+      return { user: { include: { department: true, role: true } }, department: true, reportingManager: true, _count: { select: { documents: true } } };
     case "candidates":
       return { assignedInterviewer: true };
     case "procurement":
@@ -102,6 +102,16 @@ function coerceValue(field: FieldConfig, value: unknown) {
       .map((tag) => tag.trim())
       .filter(Boolean);
   }
+  if (field.type === "list") {
+    if (Array.isArray(value)) return value;
+    if (value && typeof value === "object") return value;
+    try {
+      const parsed = JSON.parse(String(value || "[]"));
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
   return value;
 }
 
@@ -119,6 +129,18 @@ export async function buildWriteData(config: ModuleConfig, body: Record<string, 
   if (config.key === "users" && isCreate) {
     data.email = internalEmailFromUsername(body.username);
     data.passwordHash = await bcrypt.hash(String(body.password), 12);
+  }
+
+  if (config.key === "hr") {
+    const employeeName = String(body.userId ?? "").trim();
+    if (employeeName && !employeeName.includes("-")) {
+      data.fullName = data.fullName || employeeName;
+      const matchedUser = await prisma.user.findFirst({
+        where: { name: { contains: employeeName } },
+        select: { id: true },
+      });
+      data.userId = matchedUser?.id ?? null;
+    }
   }
 
   if (config.key === "tasks" && isCreate) {
@@ -157,10 +179,18 @@ export function sanitizeRecord(record: Record<string, unknown>, user: SessionUse
   if ("salaryAmount" in record && !isAdmin(user) && !user.salaryVisible) {
     record.salaryAmount = null;
   }
+  for (const field of ["bankAccountDetails", "baseSalary", "allowances", "bonuses", "deductions", "payrollNotes", "payslips"]) {
+    if (field in record && !isAdmin(user) && !user.salaryVisible) record[field] = null;
+  }
 
   if (record.hrProfile && typeof record.hrProfile === "object" && record.hrProfile !== null) {
     const profile = record.hrProfile as Record<string, unknown>;
-    if (!isAdmin(user) && !user.salaryVisible) profile.salaryAmount = null;
+    if (!isAdmin(user) && !user.salaryVisible) {
+      profile.salaryAmount = null;
+      for (const field of ["bankAccountDetails", "baseSalary", "allowances", "bonuses", "deductions", "payrollNotes", "payslips"]) {
+        if (field in profile) profile[field] = null;
+      }
+    }
   }
 
   return record;

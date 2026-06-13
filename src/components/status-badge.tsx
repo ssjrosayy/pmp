@@ -14,6 +14,14 @@ const tones: Record<string, string> = {
   PENDING: "bg-amber-50 text-amber-700 ring-amber-200",
   IN_PROGRESS: "bg-blue-50 text-blue-700 ring-blue-200",
   HIGH: "bg-orange-50 text-orange-700 ring-orange-200",
+  APPLIED: "bg-slate-100 text-slate-700 ring-slate-200",
+  SHORTLISTED: "bg-cyan-50 text-cyan-700 ring-cyan-200",
+  INTERVIEW_SCHEDULED: "bg-violet-50 text-violet-700 ring-violet-200",
+  INTERVIEWED: "bg-blue-50 text-blue-700 ring-blue-200",
+  SELECTED: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  OFFER_SENT: "bg-amber-50 text-amber-700 ring-amber-200",
+  HIRED: "bg-teal-50 text-teal-700 ring-teal-200",
+  REJECTED: "bg-red-50 text-red-700 ring-red-200",
 };
 
 export function StatusBadge({ value }: { value: string | boolean | null | undefined }) {

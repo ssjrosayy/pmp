@@ -117,6 +117,8 @@ const relations: Partial<Record<CollectionName, Record<string, Relation>>> = {
   },
   HRProfile: {
     user: { collection: "User", sourceField: "userId" },
+    department: { collection: "Department", sourceField: "departmentId" },
+    reportingManager: { collection: "User", sourceField: "reportingManagerId" },
     documents: { collection: "Document", foreignField: "employeeProfileId", many: true },
   },
   Candidate: { assignedInterviewer: { collection: "User", sourceField: "assignedInterviewerId" } },
@@ -153,10 +155,385 @@ const defaults: Partial<Record<CollectionName, Row>> = {
 const globalForCosmos = globalThis as unknown as {
   cosmosClient?: MongoClient;
   cosmosDb?: Promise<Db>;
+  demoStore?: Record<CollectionName, Row[]>;
 };
 
 let mongoClient = globalForCosmos.cosmosClient;
 let database = globalForCosmos.cosmosDb;
+const demoMode = !process.env.DATABASE_URL?.startsWith("mongodb");
+
+function daysFromNow(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
+function createDemoStore(): Record<CollectionName, Row[]> {
+  const now = new Date();
+  const superRole = { id: "role-super", name: "SUPER_ADMIN", label: "Super Admin", description: "Full platform access" };
+  const adminRole = { id: "role-admin", name: "ADMIN", label: "Admin / Operations", description: "Operations access" };
+  const pmRole = { id: "role-pm", name: "PROJECT_MANAGER", label: "Project Manager", description: "Project delivery access" };
+  const exec = { id: "dept-exec", name: "Executive", notes: "Company leadership and approvals." };
+  const hr = { id: "dept-hr", name: "HR/Admin", notes: "Hiring, interviews, onboarding, and employee records." };
+  const dev = { id: "dept-dev", name: "Software Development", notes: "Product engineering and delivery." };
+  const ceo = {
+    id: "demo-ceo",
+    name: "Axis CEO",
+    email: "ceo@axis-internal.com",
+    passwordHash: "demo",
+    phone: "+92 300 0000000",
+    status: "ACTIVE",
+    roleId: superRole.id,
+    departmentId: exec.id,
+    joiningDate: new Date("2026-01-01"),
+    salaryVisible: true,
+    canViewFinance: true,
+    canViewSensitiveDocuments: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const sara = {
+    id: "user-sara",
+    name: "Sara Khan",
+    email: "sara@axis.local",
+    passwordHash: "demo",
+    status: "ACTIVE",
+    roleId: adminRole.id,
+    departmentId: hr.id,
+    joiningDate: new Date("2026-02-01"),
+    salaryVisible: true,
+    canViewFinance: true,
+    canViewSensitiveDocuments: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const hamza = {
+    id: "user-hamza",
+    name: "Hamza Ali",
+    email: "hamza@axis.local",
+    passwordHash: "demo",
+    status: "ACTIVE",
+    roleId: pmRole.id,
+    departmentId: dev.id,
+    joiningDate: new Date("2026-02-15"),
+    salaryVisible: false,
+    canViewFinance: false,
+    canViewSensitiveDocuments: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+  hr.headId = sara.id;
+  dev.headId = hamza.id;
+  const officeProject = {
+    id: "project-office",
+    name: "Axis Office Setup",
+    type: "OFFICE_ADMIN",
+    status: "ACTIVE",
+    priority: "HIGH",
+    ownerId: sara.id,
+    departmentId: hr.id,
+    clientName: "",
+    budget: 2500000,
+    description: "Procurement, onboarding, and office operations readiness.",
+    startDate: new Date("2026-05-01"),
+    dueDate: daysFromNow(21),
+    createdAt: now,
+    updatedAt: now,
+  };
+  const hiringProject = {
+    id: "project-hiring",
+    name: "Engineering Hiring Sprint",
+    type: "HR",
+    status: "ACTIVE",
+    priority: "CRITICAL",
+    ownerId: ceo.id,
+    departmentId: hr.id,
+    clientName: "",
+    budget: 600000,
+    description: "Interview pipeline and onboarding for core team roles.",
+    startDate: new Date("2026-06-01"),
+    dueDate: daysFromNow(14),
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  return {
+    Role: [superRole, adminRole, pmRole],
+    Permission: [],
+    RolePermission: [],
+    User: [ceo, sara, hamza],
+    Department: [exec, hr, dev],
+    Project: [officeProject, hiringProject],
+    ProjectMember: [
+      { id: "member-sara-office", projectId: officeProject.id, userId: sara.id, access: "owner", createdAt: now, updatedAt: now },
+      { id: "member-hamza-hiring", projectId: hiringProject.id, userId: hamza.id, access: "member", createdAt: now, updatedAt: now },
+    ],
+    Milestone: [],
+    Task: [
+      {
+        id: "task-interviews",
+        title: "Schedule HR interview round",
+        description: "Coordinate interview slots and panel notes.",
+        projectId: hiringProject.id,
+        assigneeId: sara.id,
+        reporterId: ceo.id,
+        departmentId: hr.id,
+        status: "IN_PROGRESS",
+        priority: "HIGH",
+        dueDate: daysFromNow(2),
+        timeEstimateMinutes: 180,
+        timeSpentMinutes: 60,
+        tags: ["HR", "Interview"],
+        approvalRequired: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "task-dashboard",
+        title: "Review operations dashboard",
+        description: "Verify modules and local demo data.",
+        projectId: officeProject.id,
+        assigneeId: hamza.id,
+        reporterId: ceo.id,
+        departmentId: dev.id,
+        status: "REVIEW",
+        priority: "MEDIUM",
+        dueDate: daysFromNow(0),
+        tags: ["Dashboard"],
+        approvalRequired: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    TaskDependency: [],
+    Subtask: [],
+    ChecklistItem: [],
+    Comment: [],
+    Document: [
+      {
+        id: "doc-policy",
+        title: "Interview Scorecard Template",
+        category: "JDS",
+        status: "UNDER_REVIEW",
+        projectId: hiringProject.id,
+        uploaderId: sara.id,
+        fileName: "interview-scorecard.pdf",
+        content: "Candidate evaluation rubric and interview feedback template.",
+        sensitive: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    DocumentVersion: [],
+    DocumentPermission: [],
+    HRProfile: [
+      {
+        id: "hr-ceo",
+        userId: ceo.id,
+        fullName: "Axis CEO",
+        employeeCode: "AX-100",
+        contactDetails: "ceo@axis-internal.com / +92 300 0000000",
+        emergencyContacts: [{ name: "Executive Office", relation: "Office", phone: "+92 300 1111111" }],
+        cnic: "35202-0000000-0",
+        bankAccountDetails: "Bank: HBL, IBAN: PK00HABB0000000000000000",
+        status: "ACTIVE",
+        joiningDate: ceo.joiningDate,
+        probationStartDate: new Date("2026-01-01"),
+        probationEndDate: new Date("2026-08-01"),
+        confirmationDate: new Date("2026-08-02"),
+        resignationDate: null,
+        leavingDate: null,
+        designation: "Chief Executive Officer",
+        departmentId: exec.id,
+        reportingManagerId: null,
+        employmentType: "FULL_TIME",
+        casualLeaveBalance: 10,
+        medicalLeaveBalance: 8,
+        annualLeaveBalance: 18,
+        leaveRequests: [
+          { type: "ANNUAL", from: "2026-07-20", to: "2026-07-22", days: 3, employeeRequest: "Submitted", managerApproval: "APPROVED", hrStatus: "LOGGED" },
+        ],
+        attendanceLogs: [
+          { date: "2026-06-10", clockIn: "09:30", clockOut: "18:20", mode: "Office", status: "PRESENT" },
+          { date: "2026-06-11", clockIn: "10:00", clockOut: "17:45", mode: "Remote", status: "PRESENT" },
+        ],
+        performanceHistory: [{ period: "Q2 2026", reviewer: "Board", kpis: "Revenue, hiring, delivery", goals: "Scale operations", rating: "A" }],
+        promotionHistory: [],
+        assetLedger: [{ asset: "MacBook Pro", serial: "AX-MBP-CEO", assignedOn: "2026-01-01", condition: "Good", returnedOn: "" }],
+        salaryAmount: 750000,
+        baseSalary: 650000,
+        allowances: 75000,
+        bonuses: 50000,
+        deductions: 25000,
+        payrollNotes: "Executive payroll package. Provident fund deduction included.",
+        payslips: [{ month: "May 2026", gross: 775000, deductions: 25000, net: 750000, status: "GENERATED", downloadUrl: "/payslips/axis-ceo-may-2026.pdf" }],
+        salaryCurrency: "PKR",
+        contractStatus: "Signed",
+        performanceNotes: "Leadership account for demo review.",
+        attendanceNotes: "N/A",
+        warnings: "",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "hr-sara",
+        userId: sara.id,
+        fullName: "Sara Khan",
+        employeeCode: "AX-101",
+        contactDetails: "sara@axis.local / +92 301 2222222",
+        emergencyContacts: [{ name: "Nadia Khan", relation: "Sister", phone: "+92 301 3333333" }],
+        cnic: "35202-1111111-1",
+        bankAccountDetails: "Bank: Meezan, IBAN: PK00MEZN0000000000000000",
+        status: "ACTIVE",
+        joiningDate: sara.joiningDate,
+        probationStartDate: new Date("2026-02-01"),
+        probationEndDate: new Date("2026-08-15"),
+        confirmationDate: null,
+        resignationDate: null,
+        leavingDate: null,
+        designation: "HR & Operations Lead",
+        departmentId: hr.id,
+        reportingManagerId: ceo.id,
+        employmentType: "FULL_TIME",
+        casualLeaveBalance: 8,
+        medicalLeaveBalance: 10,
+        annualLeaveBalance: 16,
+        leaveRequests: [
+          { type: "CASUAL", from: "2026-06-18", to: "2026-06-18", days: 1, employeeRequest: "Submitted", managerApproval: "APPROVED", hrStatus: "PENDING_LOG" },
+        ],
+        attendanceLogs: [
+          { date: "2026-06-10", clockIn: "09:05", clockOut: "18:10", mode: "Office", status: "PRESENT" },
+          { date: "2026-06-11", clockIn: "09:20", clockOut: "18:00", mode: "Office", status: "PRESENT" },
+        ],
+        performanceHistory: [{ period: "Probation month 4", reviewer: "Axis CEO", kpis: "Hiring pipeline, office setup", goals: "Close engineering roles", rating: "Strong" }],
+        promotionHistory: [{ date: "2026-05-01", from: "HR Executive", to: "HR & Operations Lead", approvedBy: "Axis CEO" }],
+        assetLedger: [
+          { asset: "Dell Laptop", serial: "AX-DL-101", assignedOn: "2026-02-01", condition: "Good", returnedOn: "" },
+          { asset: "Office access card", serial: "AX-CARD-101", assignedOn: "2026-02-01", condition: "Active", returnedOn: "" },
+        ],
+        salaryAmount: 220000,
+        baseSalary: 190000,
+        allowances: 30000,
+        bonuses: 0,
+        deductions: 8000,
+        payrollNotes: "Includes transport allowance and provident fund deduction.",
+        payslips: [
+          { month: "May 2026", gross: 220000, deductions: 8000, net: 212000, status: "GENERATED", downloadUrl: "/payslips/sara-may-2026.pdf" },
+          { month: "June 2026", gross: 220000, deductions: 8000, net: 212000, status: "DRAFT", downloadUrl: "" },
+        ],
+        salaryCurrency: "PKR",
+        contractStatus: "Signed",
+        performanceNotes: "Owns HR and admin operations.",
+        attendanceNotes: "Regular",
+        warnings: "",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    Candidate: [
+      {
+        id: "candidate-1",
+        name: "Ali Raza",
+        roleAppliedFor: "Frontend Engineer",
+        phone: "+92 321 1111111",
+        email: "ali@example.com",
+        cvUrl: "https://example.com/cv/ali",
+        expectedSalary: 180000,
+        stage: "INTERVIEW_SCHEDULED",
+        interviewNotes: "Strong React background. Technical interview pending.",
+        rating: 4,
+        assignedInterviewerId: hamza.id,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "candidate-2",
+        name: "Mina Shah",
+        roleAppliedFor: "HR Coordinator",
+        phone: "+92 322 2222222",
+        email: "mina@example.com",
+        cvUrl: "https://example.com/cv/mina",
+        expectedSalary: 120000,
+        stage: "SHORTLISTED",
+        interviewNotes: "Good operations fit.",
+        rating: 3,
+        assignedInterviewerId: sara.id,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    ProcurementItem: [
+      {
+        id: "proc-laptops",
+        itemName: "Interview room laptops",
+        category: "ELECTRONICS",
+        status: "QUOTED",
+        vendor: "Local IT Vendor",
+        estimatedCost: 450000,
+        actualCost: 0,
+        assignedPersonId: sara.id,
+        dueDate: daysFromNow(7),
+        paymentStatus: "PENDING",
+        receiptUrl: "",
+        notes: "Awaiting final approval.",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    Expense: [
+      {
+        id: "expense-1",
+        title: "Recruitment campaign",
+        amount: 85000,
+        category: "Hiring",
+        status: "APPROVED",
+        projectId: hiringProject.id,
+        departmentId: hr.id,
+        paidById: sara.id,
+        approvedById: ceo.id,
+        date: daysFromNow(-3),
+        paymentMethod: "Bank transfer",
+        receiptUrl: "",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    Meeting: [
+      {
+        id: "meeting-1",
+        title: "HR pipeline review",
+        scheduledAt: daysFromNow(1),
+        notes: "Review candidate stages and next interview slots.",
+        organizerId: sara.id,
+        projectId: hiringProject.id,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    MeetingParticipant: [{ id: "mp-1", meetingId: "meeting-1", userId: ceo.id, createdAt: now, updatedAt: now }],
+    MeetingActionItem: [],
+    Notification: [
+      { id: "note-1", userId: ceo.id, title: "Demo mode active", body: "Local sample data is loaded because DATABASE_URL is not configured.", readAt: null, createdAt: now, updatedAt: now },
+    ],
+    AuditLog: [
+      {
+        id: "audit-1",
+        actorId: ceo.id,
+        action: "LOGIN",
+        entityType: "Demo",
+        entityId: "local-preview",
+        summary: "Local demo data loaded for preview.",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+  };
+}
+
+function demoStore() {
+  globalForCosmos.demoStore ??= createDemoStore();
+  return globalForCosmos.demoStore;
+}
 
 function getDatabase() {
   if (database) return database;
@@ -247,6 +624,9 @@ function toMongoFilter(whereInput: Row | undefined, collection: CollectionName):
 }
 
 async function rowsFor(collection: CollectionName, filter: Filter<Document> = {}) {
+  if (demoMode) {
+    return [...demoStore()[collection]];
+  }
   const db = await getDatabase();
   return (await db.collection<StoredDocument>(collection).find(filter as Filter<StoredDocument>).toArray()).map(toRow);
 }
@@ -387,8 +767,12 @@ async function createRow(collection: CollectionName, input: Row, include?: Row) 
     createdAt: data.createdAt ?? now,
     updatedAt: data.updatedAt ?? now,
   };
+  if (demoMode) {
+    demoStore()[collection].push(row);
+  } else {
   const db = await getDatabase();
   await db.collection<StoredDocument>(collection).insertOne(toDocument(row) as StoredDocument);
+  }
 
   for (const [relationName, relationInput] of nested) {
     const relation = relations[collection]?.[relationName];
@@ -408,7 +792,7 @@ function delegate(collection: CollectionName) {
     async findMany(args: QueryArgs = {}): Promise<ResultRow[]> {
       const filter = toMongoFilter(args.where, collection);
       let rows: Row[];
-      if (filter) {
+      if (filter && !demoMode) {
         rows = await rowsFor(collection, filter);
       } else {
         const snapshot = await fullSnapshot();
@@ -427,7 +811,7 @@ function delegate(collection: CollectionName) {
     },
     async count(args: QueryArgs = {}) {
       const filter = toMongoFilter(args.where, collection);
-      if (filter) return (await getDatabase()).collection(collection).countDocuments(filter);
+      if (filter && !demoMode) return (await getDatabase()).collection(collection).countDocuments(filter);
       return (await this.findMany({ where: args.where })).length;
     },
     async create(args: QueryArgs): Promise<ResultRow> {
@@ -442,7 +826,13 @@ function delegate(collection: CollectionName) {
       const existing = await this.findUnique({ where: args.where });
       if (!existing) throw new Error(`${collection} not found.`);
       const data = { ...(args.data as Row), updatedAt: new Date() };
-      await (await getDatabase()).collection<StoredDocument>(collection).updateOne({ _id: String(existing.id) }, { $set: data });
+      if (demoMode) {
+        const rows = demoStore()[collection];
+        const index = rows.findIndex((row) => row.id === existing.id);
+        if (index >= 0) rows[index] = { ...rows[index], ...data };
+      } else {
+        await (await getDatabase()).collection<StoredDocument>(collection).updateOne({ _id: String(existing.id) }, { $set: data });
+      }
       const row = { ...existing, ...data };
       const snapshot = await includeSnapshot(collection, [row], args.include);
       return enrich(collection, row, args.include, snapshot) as ResultRow;
@@ -450,7 +840,13 @@ function delegate(collection: CollectionName) {
     async delete(args: QueryArgs): Promise<ResultRow> {
       const existing = await this.findUnique({ where: args.where });
       if (!existing) throw new Error(`${collection} not found.`);
-      await (await getDatabase()).collection<StoredDocument>(collection).deleteOne({ _id: String(existing.id) });
+      if (demoMode) {
+        const rows = demoStore()[collection];
+        const index = rows.findIndex((row) => row.id === existing.id);
+        if (index >= 0) rows.splice(index, 1);
+      } else {
+        await (await getDatabase()).collection<StoredDocument>(collection).deleteOne({ _id: String(existing.id) });
+      }
       return existing;
     },
     async upsert(args: QueryArgs) {
