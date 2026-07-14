@@ -55,12 +55,14 @@ Default seeded super-admin logins:
 - Set `JWT_SECRET` to a secure value in every deployed environment.
 - Store `DATABASE_URL` in App Service configuration or Key Vault references, not committed source files.
 - Run `npm run db:seed` only for a new demo environment. The existing platform data has already been migrated into Cosmos DB.
+- See `AZURE_DEPLOYMENT.md` for the clean setup steps when deploying from a new GitHub/Azure account.
 
 ### Azure App Service With Cosmos DB
 
 For Azure App Service deployment:
 
 - Use a Linux Node.js App Service and the startup command `npm run start:azure` or `npm start`.
+- Use Node.js 22, matching the `engines` field in `package.json`.
 - Set `DATABASE_URL` to the Cosmos DB for MongoDB connection string including `/axis_ops`, plus a secure `JWT_SECRET`, in App Service configuration.
 - When switching deployment sources, enable App Service build during deployment so Azure regenerates `oryx-manifest.toml` and `node_modules.tar.gz` from the current GitHub commit.
 - Provision indexes once with `npm run db:indexes`, then use the startup command for normal application starts.
