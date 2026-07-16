@@ -257,12 +257,13 @@ function downloadPayslipPdf(record: Record<string, unknown>, payslip: Record<str
     content += pdfTextLine(310, y - 6, 11, row[3]);
   });
   content += pdfTextLine(48, 550, 13, "Earnings");
-  [
+  const earningRows: Array<[string, number]> = [
     ["Base Salary", numbers.base],
     ["Allowances", numbers.allowances],
     ["Bonuses", numbers.bonuses],
     ["Gross Pay", numbers.gross],
-  ].forEach((row, index) => {
+  ];
+  earningRows.forEach((row, index) => {
     const y = 525 - index * 24;
     content += `48 ${y - 8} 360 22 re S\n408 ${y - 8} 112 22 re S\n`;
     content += pdfTextLine(58, y, 10, row[0]);
