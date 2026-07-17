@@ -859,7 +859,11 @@ export function ModulePage({ moduleKey }: { moduleKey: string }) {
                         const field = fieldDefinition(config, fieldName);
                         const isList = field?.type === "list";
                         const value = form[fieldName] ?? "";
-                        const viewValue = hrDisplayValue(detailsTarget, fieldName);
+                        const viewValue = String(hrDisplayValue(detailsTarget, fieldName));
+                        const listEntries =
+                          isList && Array.isArray(detailsTarget[fieldName])
+                            ? (detailsTarget[fieldName] as Record<string, unknown>[])
+                            : [];
                         return (
                           <label key={fieldName} className={cn("block", isList || field?.type === "textarea" ? "md:col-span-2" : "")}>
                             <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -945,10 +949,10 @@ export function ModulePage({ moduleKey }: { moduleKey: string }) {
                               )
                             ) : (
                               <div className="mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800">
-                                {isList && Array.isArray(detailsTarget[fieldName]) ? (
-                                  (detailsTarget[fieldName] as Record<string, unknown>[]).length > 0 ? (
+                                {isList ? (
+                                  listEntries.length > 0 ? (
                                     <div className="space-y-2">
-                                      {(detailsTarget[fieldName] as Record<string, unknown>[]).map((entry, index) => (
+                                      {listEntries.map((entry, index) => (
                                         <div key={index} className="rounded-md border border-slate-100 p-2">
                                           <p className="text-xs leading-5 text-slate-600">
                                             {Object.entries(entry).map(([key, entryValue]) => `${titleCase(key)}: ${String(entryValue || "-")}`).join(" | ")}
