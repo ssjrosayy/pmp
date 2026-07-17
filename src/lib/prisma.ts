@@ -2,6 +2,12 @@ import { randomUUID } from "node:crypto";
 import { MongoClient, type Db, type Document, type Filter } from "mongodb";
 
 type Row = Record<string, unknown>;
+type DemoDepartment = {
+  id: string;
+  name: string;
+  notes: string;
+  headId?: string;
+};
 // The adapter exposes dynamic module records matching the generic admin table configuration.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ResultRow = Record<string, any> & { id: string };
@@ -173,9 +179,9 @@ function createDemoStore(): Record<CollectionName, Row[]> {
   const superRole = { id: "role-super", name: "SUPER_ADMIN", label: "Super Admin", description: "Full platform access" };
   const adminRole = { id: "role-admin", name: "ADMIN", label: "Admin / Operations", description: "Operations access" };
   const pmRole = { id: "role-pm", name: "PROJECT_MANAGER", label: "Project Manager", description: "Project delivery access" };
-  const exec = { id: "dept-exec", name: "Executive", notes: "Company leadership and approvals." };
-  const hr = { id: "dept-hr", name: "HR/Admin", notes: "Hiring, interviews, onboarding, and employee records." };
-  const dev = { id: "dept-dev", name: "Software Development", notes: "Product engineering and delivery." };
+  const exec: DemoDepartment = { id: "dept-exec", name: "Executive", notes: "Company leadership and approvals." };
+  const hr: DemoDepartment = { id: "dept-hr", name: "HR/Admin", notes: "Hiring, interviews, onboarding, and employee records." };
+  const dev: DemoDepartment = { id: "dept-dev", name: "Software Development", notes: "Product engineering and delivery." };
   const ceo = {
     id: "demo-ceo",
     name: "Axis CEO",
