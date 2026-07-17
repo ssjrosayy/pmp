@@ -266,7 +266,7 @@ function downloadPayslipPdf(record: Record<string, unknown>, payslip: Record<str
   earningRows.forEach((row, index) => {
     const y = 525 - index * 24;
     content += `48 ${y - 8} 360 22 re S\n408 ${y - 8} 112 22 re S\n`;
-    content += pdfTextLine(58, y, 10, row[0]);
+    content += pdfTextLine(58, y, 10, String(row[0]));
     content += pdfTextLine(430, y, 10, currencyValue(row[1]));
   });
   content += pdfTextLine(48, 405, 13, "Deductions");
